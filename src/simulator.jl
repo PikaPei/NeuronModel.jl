@@ -44,10 +44,10 @@ function gen_variables(net::Network)
         param_idx[current] = counter
         counter += 1
 
-        # for rec in neu.receptors
-        #     neu_rec = neu.name * '_' * rec.name
-        #     vars[neu_rec] = Variable(Symbol(neu_rec))(t)
-        # end
+        for rec in neu.receptors
+            neu_rec = neu.name * '_' * rec.name
+            vars[neu_rec] = Variable(Symbol(neu_rec))(t)
+        end
     end
 
     network_idx.vars = vars
@@ -69,11 +69,11 @@ function Izh_u(neu::NeuronModel)
 end
 
 
-# function Izh_receptor(neu::NeuralPopulation, rec::Receptor)
-#     neu_rec = neu.name * '_' * rec.name
-#     -network_idx.vars[neu_rec] * (network_idx.vars[neu.name*"_v"] - rec.reversal)  # * gReceptor
-#     # NOTE: unit
-# end
+function Izh_receptor(neu::NeuronModel, rec::Receptor)
+    neu_rec = neu.name * '_' * rec.name
+    -network_idx.vars[neu_rec] * (network_idx.vars[neu.name*"_v"] - rec.reversal)  # * gReceptor
+    # NOTE: unit
+end
 
 
 function gen_ode(net::Network)
@@ -85,16 +85,16 @@ function gen_ode(net::Network)
 
         # receptor
         receptor_current = Operation[]
-        # for rec in neu.receptors
-        #     neu_rec = neu.name * '_' * rec.name
-        #     eq = D(network_idx.vars[neu_rec]) ~ -network_idx.vars[neu_rec] / rec.tau
-        #
-        #     push!(eqs, eq)
-        #     ode_idx[neu_rec] = counter
-        #     counter += 1
-        #
-        #     push!(receptor_current, Izh_receptor(neu, rec))
-        # end
+        for rec in neu.receptors
+            neu_rec = neu.name * '_' * rec.name
+            eq = D(network_idx.vars[neu_rec]) ~ -network_idx.vars[neu_rec] / rec.tau
+
+            push!(eqs, eq)
+            ode_idx[neu_rec] = counter
+            counter += 1
+
+            push!(receptor_current, Izh_receptor(neu, rec))
+        end
 
         # neuron
         v_name = neu.name*"_v"
@@ -130,9 +130,9 @@ function callback_fire(neu::NeuronModel)
         integrator.u[ network_idx.ode_idx[neu.name*"_v"] ] = neu.c
         integrator.u[ network_idx.ode_idx[neu.name*"_u"] ] += neu.d
 
-        # for tar in values(neu.targets)
-        #     integrator.u[ network_idx.ode_idx[tar.name*'_'*tar.target_receptor] ] += (tar.mean_efficacy * tar.weight)  # No upper bond
-        # end
+        for tar in values(neu.targets)
+            integrator.u[ network_idx.ode_idx[tar.name*'_'*tar.target_receptor] ] += (tar.mean_efficacy * tar.weight)  # No upper bond
+        end
     end
 
     ContinuousCallback(condition, affect!, save_positions=(false,false))
@@ -190,43 +190,43 @@ end
 
 
 function gen_neuron_index(net)
-	idx = Dict{String,Int}()
-	for (index, neu) in enumerate(values(net.neu))
-		idx[neu.name] = index
-	end
-	return idx
+    idx = Dict{String,Int}()
+    for (index, neu) in enumerate(values(net.neu))
+        idx[neu.name] = index
+    end
+    return idx
 end
 
 
 function output_mempot(filename::String, net, sol; dt=0.0, header=true)
-	# TODO: output whole table directly
-	f = open(filename, "w")
-	header == true && println(f, "time", " ", join((neu.name for neu in values(net.neu)), " "))
-	if dt == 0.0
-		sol_round = [ [round(mp, digits=3) for mp in u] for u in sol.u ]
-		for (index, time) in enumerate(sol.t)
-			println(f, time, " ", join(sol_round[index], " "))
-		end
-	else
-		for time in 0.0:dt:net.event_end.time
-			sol_round = [round(mp, digits=3) for mp in sol(time)]
-			println(f, time, " ", join(sol_round, " "))
-		end
-	end
-	close(f)
+    # TODO: output whole table directly
+    f = open(filename, "w")
+    header == true && println(f, "time", " ", join((neu.name for neu in values(net.neu)), " "))
+    if dt == 0.0
+        sol_round = [ [round(mp, digits=3) for mp in u] for u in sol.u ]
+        for (index, time) in enumerate(sol.t)
+            println(f, time, " ", join(sol_round[index], " "))
+        end
+    else
+        for time in 0.0:dt:net.event_end.time
+            sol_round = [round(mp, digits=3) for mp in sol(time)]
+            println(f, time, " ", join(sol_round, " "))
+        end
+    end
+    close(f)
 end
 
 
 function output_spike(filename::String, net; name=false, digits=3)
-	idx = gen_neuron_index(net)
-	f = open(filename, "w")
+    idx = gen_neuron_index(net)
+    f = open(filename, "w")
     spikes_round = (spike.first => round(spike.second, digits=digits) for spike in spikes)
-	for spike in spikes_round
-		if name == true
-			println(f, spike.second, " ", spike.first, " ", idx[spike.first])
-		else
-			println(f, spike.second, " ", idx[spike.first])
-		end
-	end
-	close(f)
+    for spike in spikes_round
+        if name == true
+            println(f, spike.second, " ", spike.first, " ", idx[spike.first])
+        else
+            println(f, spike.second, " ", idx[spike.first])
+        end
+    end
+    close(f)
 end

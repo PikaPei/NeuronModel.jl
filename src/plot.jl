@@ -2,7 +2,6 @@ using CSV
 using DataFrames
 using Plots
 
-
 mempots = CSV.read("MemPotALL.dat", delim=' ')
 spikes = CSV.read("SpikeALL.dat", delim=' ', header=false)
 
@@ -11,4 +10,5 @@ spikes = CSV.read("SpikeALL.dat", delim=' ', header=false)
 
 plot(legend=false)
 plot!(mempots[!, 1], mempots[!, 2])
+plot!(mempots[!, 1], mempots[!, 3])
 scatter!(spikes[!, 1], fill(35, size(spikes)[1]))
