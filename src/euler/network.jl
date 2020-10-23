@@ -15,13 +15,13 @@ mutable struct Network
     receptor::OrderedDict{String,Receptor}
     synapse::OrderedDict{String,Vector{Synapse}}
     event::Vector{AbstractEvent}
-    event_end::EventEndTrial
+    event_end::EventEnd
 
     Network() = new(OrderedDict{String,AbstractNeuronModel}(),
                     OrderedDict{String,Receptor}(),
                     OrderedDict{String,Vector{Synapse}}(),
                     Vector{AbstractEvent}(),
-                    EventEndTrial(0.0, "EndTrial"))
+                    EventEnd(0.0, "End"))
 end
 
 function Base.show(io::IO, net::Network)
@@ -59,7 +59,19 @@ function add_synapse(net::Network, pre::String, post::String,
 end
 
 
-function simulate(net::Network, t, dt=0.1; store_potential=false, store_spike=false)
+function add_event(net::Network, time, type::String, args...)
+    if type == "Current"
+        event = EventCurrentInjection(time, type, args...)
+        push!(net.event, event)
+
+    elseif type == "End"
+        event = EventEnd(time, type, args...)
+        net.event_end = event
+    end
+end
+
+
+function simulate(net::Network; dt=0.1, store_potential=false, store_spike=false)
     # index: each neuron
     net_size = length(net.neuron)
     neu_index = Dict(neu.name=>i for (i, neu) in enumerate(values(net.neuron)))
@@ -82,13 +94,11 @@ function simulate(net::Network, t, dt=0.1; store_potential=false, store_spike=fa
     s = zeros(receptor_accumulated[end])  # faster when combining with v?
 
     # initialization: current
-    I = zeros(net_size)  # TODO: initialization from event
-    I[1] = 0.68  # XXX: temp
+    I = zeros(net_size)
 
-    # output:  # TODO: if store_potential=true
+    # output
     if store_potential
-        potential = zeros(length(0:dt:t), net_size)
-        potential[1, :] .= v
+        potential = zeros(length(0:dt:net.event_end.time), net_size)
     end
 
     if store_spike
@@ -97,7 +107,15 @@ function simulate(net::Network, t, dt=0.1; store_potential=false, store_spike=fa
     end
 
     # simulation
-    for (i, t_now) in enumerate(dt:dt:t)
+    event_index = 1  # TODO: sort event
+    for (i, t_now) in enumerate(0:dt:net.event_end.time)
+        # update current
+        while event_index <= length(net.event) && net.event[event_index].time == t_now
+            event = net.event[event_index]
+            I[ neu_index[event.population] ] = event.mean
+            event_index += 1
+        end
+
         for (j, neu) in enumerate(values(net.neuron))
 
             # update synapse
@@ -129,7 +147,7 @@ function simulate(net::Network, t, dt=0.1; store_potential=false, store_spike=fa
             end
 
             if store_potential
-                potential[i+1, j] = v[j]
+                potential[i, j] = v[j]
             end
         end
     end

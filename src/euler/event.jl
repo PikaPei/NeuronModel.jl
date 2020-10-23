@@ -16,7 +16,7 @@ mutable struct EventExtFreq <: AbstractEvent
     freq::Float64
 end
 
-mutable struct EventEndTrial <: AbstractEvent
+mutable struct EventEnd <: AbstractEvent
     time::Float64
     type::String
 end
