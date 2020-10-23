@@ -11,7 +11,7 @@ set_neuron_receptor_all(net, "AMPA", "GABA")
 
 add_synapse(net, "neu1", "neu2", "AMPA", 25.0)
 
-potential = simulate(net, 100, 0.1)
+results = simulate(net, 100, 0.1; store_potential=true)
 
-p = plot(potential, legend=false, dpi=200)
+p = plot(results, legend=false, dpi=200)
 savefig(p, "neu.png")

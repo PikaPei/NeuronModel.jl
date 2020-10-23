@@ -59,7 +59,7 @@ function add_synapse(net::Network, pre::String, post::String,
 end
 
 
-function simulate(net::Network, t, dt=0.1)
+function simulate(net::Network, t, dt=0.1; store_potential=false, store_spike=false)
     # index: each neuron
     net_size = length(net.neuron)
     neu_index = Dict(neu.name=>i for (i, neu) in enumerate(values(net.neuron)))
@@ -86,11 +86,18 @@ function simulate(net::Network, t, dt=0.1)
     I[1] = 0.68  # XXX: temp
 
     # output:  # TODO: if store_potential=true
-    potential = zeros(length(0:dt:t), net_size)
-    potential[1, :] .= v
+    if store_potential
+        potential = zeros(length(0:dt:t), net_size)
+        potential[1, :] .= v
+    end
+
+    if store_spike
+        spike = Vector{Pair{String,Float64}}()
+        # sizehint!() ?
+    end
 
     # simulation
-    for (i, _) in enumerate(dt:dt:t)
+    for (i, t_now) in enumerate(dt:dt:t)
         for (j, neu) in enumerate(values(net.neuron))
 
             # update synapse
@@ -108,7 +115,11 @@ function simulate(net::Network, t, dt=0.1)
 
             if v[j] >= neu.threshold
                 v[j] = neu.reset
-                # TODO: store a spike
+
+                if store_spike
+                    push!(spike, neu.name => t_now)
+                end
+
                 # TODO: refractory period
 
                 for syn in net.synapse[neu.name]
@@ -117,9 +128,18 @@ function simulate(net::Network, t, dt=0.1)
                 end
             end
 
-            potential[i+1, j] = v[j]
+            if store_potential
+                potential[i+1, j] = v[j]
+            end
         end
     end
 
-    return potential
+    # return output
+    if store_potential && store_spike
+        return (potential, spike)
+    elseif store_potential
+        return potential
+    elseif store_spike
+        return spike
+    end
 end
