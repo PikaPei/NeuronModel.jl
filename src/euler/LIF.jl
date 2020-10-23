@@ -1,9 +1,6 @@
-using Parameters
 include("receptor.jl")
 
-abstract type AbstractNeuronModel end
-
-@with_kw struct LIF{T<:Number} <: AbstractNeuronModel
+@with_kw struct LIF{T<:Real} <: AbstractNeuronModel
     name::String
     #index::Int
     N::Int = 1
@@ -12,7 +9,7 @@ abstract type AbstractNeuronModel end
     rest::T = -70.0
     reset::T = -55.0
     threshold::T = -50.0
-    receptors::Vector{Receptor} = Vector{Receptor}()
+    receptor::Vector{Receptor} = Vector{Receptor}()
 end
 
 LIF(name; kwargs...) = LIF(name=name; kwargs...)

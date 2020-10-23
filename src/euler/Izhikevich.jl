@@ -1,9 +1,4 @@
-using Parameters
-include("receptor.jl")
-
-abstract type AbstractNeuronModel end
-
-@with_kw struct Izhikevich{T<:Number} <: AbstractNeuronModel
+@with_kw struct Izhikevich{T<:Real} <: AbstractNeuronModel
     name::String
     # index::Int
     N::Int = 1
@@ -16,7 +11,7 @@ abstract type AbstractNeuronModel end
     b::T = -2.0
     c::T = -50.0
     d::T = 100.0
-    receptors::Vector{Receptor} = Vector{Receptor}()
+    receptor::Vector{Receptor} = Vector{Receptor}()
 end
 
 Izhikevich(name; kwargs...) = Izhikevich(name=name; kwargs...)
