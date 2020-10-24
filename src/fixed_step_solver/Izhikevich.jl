@@ -1,4 +1,4 @@
-@with_kw struct Izhikevich{T<:Real} <: AbstractNeuronModel
+@with_kw mutable struct Izhikevich{T<:Real} <: AbstractNeuronModel
     name::String
     # index::Int
     N::Int = 1
@@ -15,3 +15,35 @@
 end
 
 Izhikevich(name; kwargs...) = Izhikevich(name=name; kwargs...)
+
+
+function izh_eq_v(neu::Izhikevich, v, u, current)
+    return (neu.k * (v - neu.Vr) * (v - neu.Vth) - u + current) / neu.C
+end
+
+
+function izh_eq_u(neu::Izhikevich, v, u)
+    return neu.a * (neu.b * (v - neu.Vr) - u)
+end
+
+
+function izh_solve(solver::Euler, neu::Izhikevich, v, u, current, dt)
+    v_next = v + dt * izh_eq_v(neu, v, u, current)
+    u_next = u + dt * izh_eq_u(neu, v, u)
+    return (v_next, u_next)
+end
+
+
+function izh_solve(solver::RK4, neu::Izhikevich, v, u, current, dt)
+    k1_v = dt * izh_eq_v(neu, v, u, current)
+    k1_u = dt * izh_eq_u(neu, v, u)
+    k2_v = dt * izh_eq_v(neu, v + 0.5k1_v, u + 0.5k1_u, current)
+    k2_u = dt * izh_eq_u(neu, v + 0.5k1_v, u + 0.5k1_u)
+    k3_v = dt * izh_eq_v(neu, v + 0.5k2_v, u + 0.5k2_u, current)
+    k3_u = dt * izh_eq_u(neu, v + 0.5k2_v, u + 0.5k2_u)
+    k4_v = dt * izh_eq_v(neu, v + k3_v, u + k3_u, current)
+    k4_u = dt * izh_eq_u(neu, v + k3_v, u + k3_u)
+    v_next = v + 1/6 * (k1_v + 2k2_v + 2k3_v + k4_v)
+    u_next = u + 1/6 * (k1_u + 2k2_u + 2k3_u + k4_u)
+    return (v_next, u_next)
+end
