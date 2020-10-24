@@ -164,10 +164,10 @@ function simulate(net::Network, ::Type{LIF}; solver=Euler(), dt=0.1, store_poten
                     end
                 end
             end
+        end
 
-            if store_potential
-                potential[i, j] = v[j]
-            end
+        if store_potential
+            potential[i, :] .= v
         end
     end
 
@@ -254,8 +254,6 @@ function simulate(net::Network, ::Type{Izhikevich}; solver=Euler(), dt=0.1, stor
                     push!(spike, neu.name => t_now)
                 end
 
-                # TODO: refractory period
-
                 if haskey(net.synapse, neu.name)
                     for syn in net.synapse[neu.name]
                         rec_idx = receptor_index[syn.post][syn.receptor]
@@ -263,10 +261,10 @@ function simulate(net::Network, ::Type{Izhikevich}; solver=Euler(), dt=0.1, stor
                     end
                 end
             end
+        end
 
-            if store_potential
-                potential[i, j] = izh_v[j]
-            end
+        if store_potential
+            potential[i, :] .= izh_v
         end
     end
 
