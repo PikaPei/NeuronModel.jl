@@ -1,11 +1,12 @@
 using DataStructures
 using Parameters
 
-abstract type AbstractNeuronModel end
 
+include("types.jl")
 include("receptor.jl")
 include("synapse.jl")
 include("event.jl")
+include("output.jl")
 include("LIF.jl")
 include("Izhikevich.jl")
 
@@ -44,6 +45,20 @@ function add_receptor(net::Network,
 end
 
 
+function set_neuron_param_all(net::Network, N::Int, Cm::Real, taum::Real,
+                              rest::Real, reset::Real, threshold::Real)
+
+    for neu in values(net.neuron)
+        neu.N = N
+        neu.Cm = Cm
+        neu.taum = taum
+        neu.rest = rest
+        neu.reset = reset
+        neu.threshold = threshold
+    end
+end
+
+
 function set_neuron_receptor_all(net::Network, args...)
     for neu in values(net.neuron), rec in args
         push!(neu.receptor, net.receptor[rec])
@@ -71,7 +86,7 @@ function add_event(net::Network, time, type::String, args...)
 end
 
 
-function simulate(net::Network; dt=0.1, store_potential=false, store_spike=false)
+function simulate(net::Network; solver=Euler(), dt=0.1, store_potential=false, store_spike=false)
     # index: each neuron
     net_size = length(net.neuron)
     neu_index = Dict(neu.name=>i for (i, neu) in enumerate(values(net.neuron)))
@@ -116,7 +131,7 @@ function simulate(net::Network; dt=0.1, store_potential=false, store_spike=false
             event_index += 1
         end
 
-        for (j, neu) in enumerate(values(net.neuron))
+        for (j, neu) in enumerate(values(net.neuron))  # TODO: @sync @async -> send synapse will affect?
 
             # update synapse
             receptor_current = 0.0
@@ -128,8 +143,8 @@ function simulate(net::Network; dt=0.1, store_potential=false, store_spike=false
             end
 
             # update neuron
-            dvdt = -(1 / neu.taum) * (v[j] - neu.rest) + +(receptor_current, I[j]) / neu.Cm  # TODO: use decay factor?
-            v[j] += dvdt * dt
+            current = receptor_current + I[j]
+            v[j] = lif_solve(solver, neu, v[j], current, dt)
 
             if v[j] >= neu.threshold
                 v[j] = neu.reset
@@ -154,10 +169,12 @@ function simulate(net::Network; dt=0.1, store_potential=false, store_spike=false
 
     # return output
     if store_potential && store_spike
+        output_spike("SpikeALL.dat", spike, neu_index)
         return (potential, spike)
     elseif store_potential
         return potential
     elseif store_spike
+        output_spike("SpikeALL.dat", spike, neu_index)
         return spike
     end
 end
