@@ -124,7 +124,8 @@ function simulate(net::Network, ::Type{LIF}; solver=Euler(), dt=0.1, store_poten
     end
 
     # simulation
-    event_index = 1  # TODO: sort event
+    sort!(net.event, by = x -> x.time)
+    event_index = 1
     for (i, t_now) in enumerate(0:dt:net.event_end.time)
         # update current
         while event_index <= length(net.event) && net.event[event_index].time == t_now
@@ -138,10 +139,9 @@ function simulate(net::Network, ::Type{LIF}; solver=Euler(), dt=0.1, store_poten
             # update synapse
             receptor_current = 0.0
             for (k, rec) in enumerate(values(neu.receptor))
-                receptor_current += -s[receptor_index_start[j] + k-1] * (v[j] - rec.reversal) / 1000
-
-                dsdt = -s[receptor_index_start[j] + k-1] / rec.tau
-                s[receptor_index_start[j] + k-1] += dsdt * dt
+                rec_idx = receptor_index_start[j] + k-1
+                receptor_current += -s[rec_idx] * (v[j] - rec.reversal) / 1000
+                s[rec_idx] = receptor_solve(rec, s[rec_idx], dt)
             end
 
             # update neuron
@@ -171,7 +171,7 @@ function simulate(net::Network, ::Type{LIF}; solver=Euler(), dt=0.1, store_poten
         end
     end
 
-    # return output
+    # return output  # TODO: output_potential
     if store_potential && store_spike
         output_spike("SpikeALL.dat", spike, neu_index)
         return (potential, spike)
@@ -221,7 +221,8 @@ function simulate(net::Network, ::Type{Izhikevich}; solver=Euler(), dt=0.1, stor
     end
 
     # simulation
-    event_index = 1  # TODO: sort event
+    sort!(net.event, by = x -> x.time)
+    event_index = 1
     for (i, t_now) in enumerate(0:dt:net.event_end.time)
         # update current
         while event_index <= length(net.event) && net.event[event_index].time == t_now
@@ -235,10 +236,9 @@ function simulate(net::Network, ::Type{Izhikevich}; solver=Euler(), dt=0.1, stor
             # update synapse
             receptor_current = 0.0
             for (k, rec) in enumerate(values(neu.receptor))
-                receptor_current += -s[receptor_index_start[j] + k-1] * (izh_v[j] - rec.reversal)  # XXX: without / 1000
-
-                dsdt = -s[receptor_index_start[j] + k-1] / rec.tau
-                s[receptor_index_start[j] + k-1] += dsdt * dt
+                rec_idx = receptor_index_start[j] + k-1
+                receptor_current += -s[rec_idx] * (izh_v[j] - rec.reversal)  # XXX: without / 1000
+                s[rec_idx] = receptor_solve(rec, s[rec_idx], dt)
             end
 
             # update neuron
@@ -270,7 +270,7 @@ function simulate(net::Network, ::Type{Izhikevich}; solver=Euler(), dt=0.1, stor
         end
     end
 
-    # return output
+    # return output  # TODO: output_potential
     if store_potential && store_spike
         output_spike("SpikeALL.dat", spike, neu_index)
         return (potential, spike)
