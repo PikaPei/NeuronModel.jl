@@ -88,7 +88,25 @@ function add_event(net::Network, time, type::String, args...)
 end
 
 
-function simulate(net::Network, ::Type{LIF}; solver=Euler(), dt=0.1, store_potential=false, store_spike=false)
+function receptor_current(::Type{LIF}, r::Receptor, s, v)
+    -s * (v - r.reversal) / 1000
+end
+
+
+function receptor_current(::Type{Izhikevich}, r::Receptor, s, v)
+    -s * (v - r.reversal)  # XXX: without / 1000
+end
+
+
+function send_spike(net, pre, s, receptor_index)
+    for syn in net.synapse[pre]
+        rec_idx = receptor_index[syn.post][syn.receptor]
+        s[rec_idx] += syn.weight
+    end
+end
+
+
+function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_potential=false, store_spike=false)
     # index: each neuron
     net_size = length(net.neuron)
     neu_index = Dict(neu.name=>i for (i, neu) in enumerate(values(net.neuron)))
@@ -137,15 +155,15 @@ function simulate(net::Network, ::Type{LIF}; solver=Euler(), dt=0.1, store_poten
         for (j, neu) in enumerate(values(net.neuron))  # TODO: @sync @async -> send synapse will affect?
 
             # update synapse
-            receptor_current = 0.0
+            rec_curr = 0.0
             for (k, rec) in enumerate(values(neu.receptor))
                 rec_idx = receptor_index_start[j] + k-1
-                receptor_current += -s[rec_idx] * (v[j] - rec.reversal) / 1000
+                rec_curr += receptor_current(model, rec, s[rec_idx], v[j])
                 s[rec_idx] = receptor_solve(rec, s[rec_idx], dt)
             end
 
             # update neuron
-            current = receptor_current + I[j]
+            current = rec_curr + I[j]
             v[j] = lif_solve(solver, neu, v[j], current, dt)
 
             if v[j] >= neu.threshold
@@ -158,10 +176,7 @@ function simulate(net::Network, ::Type{LIF}; solver=Euler(), dt=0.1, store_poten
                 # TODO: refractory period
 
                 if haskey(net.synapse, neu.name)
-                    for syn in net.synapse[neu.name]
-                        rec_idx = receptor_index[syn.post][syn.receptor]
-                        s[rec_idx] += syn.weight
-                    end
+                    send_spike(net, neu.name, s, receptor_index)
                 end
             end
         end
@@ -184,7 +199,7 @@ function simulate(net::Network, ::Type{LIF}; solver=Euler(), dt=0.1, store_poten
 end
 
 
-function simulate(net::Network, ::Type{Izhikevich}; solver=Euler(), dt=0.1, store_potential=false, store_spike=false)
+function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1, store_potential=false, store_spike=false)
     # index: each neuron
     net_size = length(net.neuron)
     neu_index = Dict(neu.name=>i for (i, neu) in enumerate(values(net.neuron)))
@@ -234,16 +249,16 @@ function simulate(net::Network, ::Type{Izhikevich}; solver=Euler(), dt=0.1, stor
         for (j, neu) in enumerate(values(net.neuron))  # TODO: @sync @async -> send synapse will affect?
 
             # update synapse
-            receptor_current = 0.0
+            rec_curr = 0.0
             for (k, rec) in enumerate(values(neu.receptor))
                 rec_idx = receptor_index_start[j] + k-1
-                receptor_current += -s[rec_idx] * (izh_v[j] - rec.reversal)  # XXX: without / 1000
+                rec_curr += receptor_current(model, rec, s[rec_idx], izh_v[j])
                 s[rec_idx] = receptor_solve(rec, s[rec_idx], dt)
             end
 
             # update neuron
             v, u = izh_v[j], izh_u[j]
-            current = receptor_current + I[j]
+            current = rec_curr + I[j]
             izh_v[j], izh_u[j] = izh_solve(solver, neu, v, u, current, dt)
 
             if izh_v[j] >= neu.Vpeak
@@ -255,10 +270,7 @@ function simulate(net::Network, ::Type{Izhikevich}; solver=Euler(), dt=0.1, stor
                 end
 
                 if haskey(net.synapse, neu.name)
-                    for syn in net.synapse[neu.name]
-                        rec_idx = receptor_index[syn.post][syn.receptor]
-                        s[rec_idx] += syn.weight
-                    end
+                    send_spike(net, neu.name, s, receptor_index)
                 end
             end
         end
