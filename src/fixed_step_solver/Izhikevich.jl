@@ -34,6 +34,13 @@ function izh_solve(solver::Euler, neu::Izhikevich, v, u, current, dt)
 end
 
 
+function izh_solve!(solver::Euler, neu::Izhikevich, izh_v::Vector, izh_u::Vector, neu_idx, current, dt)
+    v, u = izh_v[neu_idx], izh_u[neu_idx]
+    izh_v[neu_idx] += dt * izh_eq_v(neu, v, u, current)
+    izh_u[neu_idx] += dt * izh_eq_u(neu, v, u)
+end
+
+
 function izh_solve(solver::RK4, neu::Izhikevich, v, u, current, dt)
     k1_v = dt * izh_eq_v(neu, v, u, current)
     k1_u = dt * izh_eq_u(neu, v, u)

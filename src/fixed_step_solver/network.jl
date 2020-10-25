@@ -88,6 +88,16 @@ function add_event(net::Network, time, type::String, args...)
 end
 
 
+function receptor_current(::Type{LIF}, r::Receptor, s::Vector, rec_idx, v::Vector, neu_idx)
+    -s[rec_idx] * (v[neu_idx] - r.reversal) / 1000
+end
+
+
+function receptor_current(::Type{Izhikevich}, r::Receptor, s::Vector, rec_idx, v::Vector, neu_idx)
+    -s[rec_idx] * (v[neu_idx] - r.reversal)  # XXX: without / 1000
+end
+
+
 function receptor_current(::Type{LIF}, r::Receptor, s, v)
     -s * (v - r.reversal) / 1000
 end
@@ -124,12 +134,8 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
 
     # initialization: v
     v = [neu.rest for neu in values(net.neuron)]  # v: membrane voltage
-
-    # initialization: gating variable (fast synapse)
-    s = zeros(receptor_accumulated[end])  # faster when combining with v?
-
-    # initialization: current
-    I = zeros(net_size)
+    s = zeros(receptor_accumulated[end])  # s: gating variable (fast synapse)
+    I = zeros(net_size)  # I: current
 
     # output
     if store_potential
@@ -158,13 +164,18 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
             rec_curr = 0.0
             for (k, rec) in enumerate(values(neu.receptor))
                 rec_idx = receptor_index_start[j] + k-1
-                rec_curr += receptor_current(model, rec, s[rec_idx], v[j])
-                s[rec_idx] = receptor_solve(rec, s[rec_idx], dt)
+
+                # rec_curr += receptor_current(model, rec, s[rec_idx], v[j])
+                # s[rec_idx] = receptor_solve(rec, s[rec_idx], dt)
+
+                rec_curr += receptor_current(model, rec, s, rec_idx, v, j)
+                receptor_solve!(rec, s, rec_idx, dt)
             end
 
             # update neuron
             current = rec_curr + I[j]
-            v[j] = lif_solve(solver, neu, v[j], current, dt)
+            # v[j] = lif_solve(solver, neu, v[j], current, dt)
+            lif_solve!(solver, neu, v, j, current, dt)  # TODO: only Euler currently
 
             if v[j] >= neu.threshold
                 v[j] = neu.reset
@@ -252,14 +263,19 @@ function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1,
             rec_curr = 0.0
             for (k, rec) in enumerate(values(neu.receptor))
                 rec_idx = receptor_index_start[j] + k-1
-                rec_curr += receptor_current(model, rec, s[rec_idx], izh_v[j])
-                s[rec_idx] = receptor_solve(rec, s[rec_idx], dt)
+
+                # rec_curr += receptor_current(model, rec, s[rec_idx], izh_v[j])
+                # s[rec_idx] = receptor_solve(rec, s[rec_idx], dt)
+
+                rec_curr += receptor_current(model, rec, s, rec_idx, izh_v, j)
+                receptor_solve!(rec, s, rec_idx, dt)
             end
 
             # update neuron
-            v, u = izh_v[j], izh_u[j]
+            # v, u = izh_v[j], izh_u[j]
             current = rec_curr + I[j]
-            izh_v[j], izh_u[j] = izh_solve(solver, neu, v, u, current, dt)
+            # izh_v[j], izh_u[j] = izh_solve(solver, neu, v, u, current, dt)
+            izh_solve!(solver, neu, izh_v, izh_u, j, current, dt)  # TODO: only Euler currently
 
             if izh_v[j] >= neu.Vpeak
                 izh_v[j] = neu.c

@@ -31,6 +31,11 @@ function lif_solve(solver::Euler, neu::LIF, v, current, dt)
 end
 
 
+function lif_solve!(solver::Euler, neu::LIF, v::Vector, neu_idx, current, dt)
+    v[neu_idx] += dt * lif_eq(neu, v[neu_idx], current)
+end
+
+
 function lif_solve(solver::RK4, neu::LIF, v, current, dt)
     k1 = dt * lif_eq(neu, v, current)
     k2 = dt * lif_eq(neu, v + 0.5k1, current)

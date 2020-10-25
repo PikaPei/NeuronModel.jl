@@ -15,6 +15,12 @@ function receptor_solve(solver::Euler, r::Receptor, s, dt)
 end
 
 
+function receptor_solve!(solver::Euler, r::Receptor, s::Vector, rec_idx, dt)
+    # s[rec_idx] += dt * receptor_eq(r, s[rec_idx])
+    s[rec_idx] += dt * (-s[rec_idx] / r.tau)
+end
+
+
 function receptor_solve(solver::RK4, r::Receptor, s, dt)
     k1 = dt * receptor_eq(r, s)
     k2 = dt * receptor_eq(r, s + 0.5k1)
@@ -26,3 +32,4 @@ end
 
 # TODO: use default_solver in the future
 receptor_solve(r::Receptor, s, dt) = receptor_solve(Euler(), r, s, dt)
+receptor_solve!(r::Receptor, s::Vector, rec_idx, dt) = receptor_solve!(Euler(), r, s, rec_idx, dt)
