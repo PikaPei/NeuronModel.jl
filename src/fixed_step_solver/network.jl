@@ -135,6 +135,7 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
     # initialization: v
     v = [neu.rest for neu in values(net.neuron)]  # v: membrane voltage
     s = zeros(receptor_accumulated[end])  # s: gating variable (fast synapse)
+    s_temp = zeros(receptor_accumulated[end])
     I = zeros(net_size)  # I: current
 
     # output
@@ -187,10 +188,13 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
                 # TODO: refractory period
 
                 if haskey(net.synapse, neu.name)
-                    send_spike(net, neu.name, s, receptor_index)
+                    send_spike(net, neu.name, s_temp, receptor_index)
                 end
             end
         end
+
+        s += s_temp
+        s_temp .= 0
 
         if store_potential
             potential[i, :] .= v
@@ -232,6 +236,7 @@ function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1,
 
     # initialization: gating variable (fast synapse)
     s = zeros(receptor_accumulated[end])  # faster when combining with izh_v?
+    s_temp = zeros(receptor_accumulated[end])
 
     # initialization: current
     I = zeros(net_size)
@@ -286,10 +291,13 @@ function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1,
                 end
 
                 if haskey(net.synapse, neu.name)
-                    send_spike(net, neu.name, s, receptor_index)
+                    send_spike(net, neu.name, s_temp, receptor_index)
                 end
             end
         end
+
+        s += s_temp
+        s_temp .= 0
 
         if store_potential
             potential[i, :] .= izh_v
