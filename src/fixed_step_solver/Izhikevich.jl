@@ -54,3 +54,18 @@ function izh_solve(solver::RK4, neu::Izhikevich, v, u, current, dt)
     u_next = u + 1/6 * (k1_u + 2k2_u + 2k3_u + k4_u)
     return (v_next, u_next)
 end
+
+
+function izh_solve!(solver::RK4, neu::Izhikevich, izh_v::Vector, izh_u::Vector, neu_idx, current, dt)
+    v, u = izh_v[neu_idx], izh_u[neu_idx]
+    k1_v = dt * izh_eq_v(neu, v, u, current)
+    k1_u = dt * izh_eq_u(neu, v, u)
+    k2_v = dt * izh_eq_v(neu, v + 0.5k1_v, u + 0.5k1_u, current)
+    k2_u = dt * izh_eq_u(neu, v + 0.5k1_v, u + 0.5k1_u)
+    k3_v = dt * izh_eq_v(neu, v + 0.5k2_v, u + 0.5k2_u, current)
+    k3_u = dt * izh_eq_u(neu, v + 0.5k2_v, u + 0.5k2_u)
+    k4_v = dt * izh_eq_v(neu, v + k3_v, u + k3_u, current)
+    k4_u = dt * izh_eq_u(neu, v + k3_v, u + k3_u)
+    izh_v[neu_idx] += 1/6 * (k1_v + 2k2_v + 2k3_v + k4_v)
+    izh_u[neu_idx] += 1/6 * (k1_u + 2k2_u + 2k3_u + k4_u)
+end

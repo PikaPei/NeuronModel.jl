@@ -173,10 +173,16 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
                 receptor_solve!(rec, s, rec_idx, dt)
             end
 
+            if (neu.refractory_status == true) && (t_now >= neu.recovery_timing)
+                neu.refractory_status = false
+            elseif neu.refractory_status == true
+                continue
+            end
+
             # update neuron
             current = rec_curr + I[j]
             # v[j] = lif_solve(solver, neu, v[j], current, dt)
-            lif_solve!(solver, neu, v, j, current, dt)  # TODO: only Euler currently
+            lif_solve!(solver, neu, v, j, current, dt)
 
             if v[j] >= neu.threshold
                 v[j] = neu.reset
@@ -185,7 +191,8 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
                     push!(spike, neu.name => t_now)
                 end
 
-                # TODO: refractory period
+                neu.refractory_status = true
+                neu.recovery_timing = t_now + neu.refractory_period
 
                 if haskey(net.synapse, neu.name)
                     send_spike(net, neu.name, s_temp, receptor_index)
@@ -280,7 +287,7 @@ function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1,
             # v, u = izh_v[j], izh_u[j]
             current = rec_curr + I[j]
             # izh_v[j], izh_u[j] = izh_solve(solver, neu, v, u, current, dt)
-            izh_solve!(solver, neu, izh_v, izh_u, j, current, dt)  # TODO: only Euler currently
+            izh_solve!(solver, neu, izh_v, izh_u, j, current, dt)
 
             if izh_v[j] >= neu.Vpeak
                 izh_v[j] = neu.c
