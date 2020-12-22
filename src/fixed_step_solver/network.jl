@@ -149,9 +149,10 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
     end
 
     # simulation
+    t_steps = 0.0:dt:net.event_end.time
     sort!(net.event, by = x -> x.time)
     event_index = 1
-    for (i, t_now) in enumerate(0:dt:net.event_end.time)
+    for (i, t_now) in enumerate(t_steps)
         # update current
         while event_index <= length(net.event) && net.event[event_index].time == t_now
             event = net.event[event_index]
@@ -210,9 +211,13 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
 
     # return output  # TODO: output_potential
     if store_potential && store_spike
+        potential = [t_steps potential]
+        output_potential("MemPotALL.dat", potential)
         output_spike("SpikeALL.dat", spike, neu_index)
         return (potential, spike)
     elseif store_potential
+        potential = [t_steps potential]
+        output_potential("MemPotALL.dat", potential)
         return potential
     elseif store_spike
         output_spike("SpikeALL.dat", spike, neu_index)
@@ -259,9 +264,10 @@ function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1,
     end
 
     # simulation
+    t_steps = 0.0:dt:net.event_end.time
     sort!(net.event, by = x -> x.time)
     event_index = 1
-    for (i, t_now) in enumerate(0:dt:net.event_end.time)
+    for (i, t_now) in enumerate(t_steps)
         # update current
         while event_index <= length(net.event) && net.event[event_index].time == t_now
             event = net.event[event_index]
@@ -313,9 +319,13 @@ function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1,
 
     # return output  # TODO: output_potential
     if store_potential && store_spike
+        potential = [t_steps potential]
+        output_potential("MemPotALL.dat", potential)
         output_spike("SpikeALL.dat", spike, neu_index)
         return (potential, spike)
     elseif store_potential
+        potential = [t_steps potential]
+        output_potential("MemPotALL.dat", potential)
         return potential
     elseif store_spike
         output_spike("SpikeALL.dat", spike, neu_index)
