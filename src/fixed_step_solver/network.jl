@@ -137,6 +137,7 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
     s = zeros(receptor_accumulated[end])  # s: gating variable (fast synapse)
     s_temp = zeros(receptor_accumulated[end])
     I = zeros(net_size)  # I: current
+    I_noise = zeros(net_size)
 
     # output
     if store_potential
@@ -157,6 +158,7 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
         while event_index <= length(net.event) && net.event[event_index].time == t_now
             event = net.event[event_index]
             I[ neu_index[event.population] ] = event.mean
+            I_noise[ neu_index[event.population] ] = event.std
             event_index += 1
         end
 
@@ -181,7 +183,7 @@ function simulate(net::Network, model::Type{LIF}; solver=Euler(), dt=0.1, store_
             end
 
             # update neuron
-            current = rec_curr + I[j]
+            current = rec_curr + I[j] + I_noise[j] * randn()
             # v[j] = lif_solve(solver, neu, v[j], current, dt)
             lif_solve!(solver, neu, v, j, current, dt)
 
@@ -252,6 +254,7 @@ function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1,
 
     # initialization: current
     I = zeros(net_size)
+    I_noise = zeros(net_size)
 
     # output
     if store_potential
@@ -272,6 +275,7 @@ function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1,
         while event_index <= length(net.event) && net.event[event_index].time == t_now
             event = net.event[event_index]
             I[ neu_index[event.population] ] = event.mean
+            I_noise[ neu_index[event.population] ] = event.std
             event_index += 1
         end
 
@@ -291,7 +295,7 @@ function simulate(net::Network, model::Type{Izhikevich}; solver=Euler(), dt=0.1,
 
             # update neuron
             # v, u = izh_v[j], izh_u[j]
-            current = rec_curr + I[j]
+            current = rec_curr + I[j] + I_noise[j] * randn()
             # izh_v[j], izh_u[j] = izh_solve(solver, neu, v, u, current, dt)
             izh_solve!(solver, neu, izh_v, izh_u, j, current, dt)
 
